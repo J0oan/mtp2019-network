@@ -23,6 +23,7 @@ while True:
 
         elif state is cte.BROADCAST_FLOODING:
             node.broacast_flooding()
+
             if node.have_neighbors_without_file():
                 state = cte.SEND_PACKET
             else:
