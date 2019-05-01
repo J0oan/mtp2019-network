@@ -1,6 +1,34 @@
 import cte
 from node import Node
 from utils import check_role
+from bunch import Bunch
+import json
+
+
+def get_config(json_file):
+    with open(json_file, 'r') as config:
+        config_dict = json.load(config)
+
+    config = Bunch(config_dict)
+
+    return config, config_dict
+
+
+def process_config(json_file):
+    config, _ = get_config_from_json(json_file)
+    return config
+
+
+def get_args():
+    argparser = argparse.ArgumentParser(description=__doc__)
+    argparser.add_argument(
+        '-c', '--config',
+        metavar='C',
+        default='None',
+        help='The Configuration file')
+    args = argparser.parse_args()
+    return args
+
 
 while True:
     # State Machine
