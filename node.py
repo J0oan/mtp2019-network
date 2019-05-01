@@ -1,43 +1,52 @@
+from packet import Packet
+from transceiver import Transceiver
+
 
 class Node(object):
-    def __init__(self):
-        # Initialize node
-        # Tx channel
+    def __init__(self, config):
+        self.config = config
+        self.packet = Packet(self.config)
+        self.transmitter = Transceiver.transmitter()
+        self.receiver = Transceiver.receiver()
         # Initialize radios
-    def send_data(self):
-        return NotImplementedError
-
-    def read_data(self):
-        return NotImplementedError
-
-    def send_packet(self):
-        """
-        Uses send_data() to tx data
-        :return:
-        """
-        return NotImplementedError
 
     def broadcast_flooding(self):
-        return NotImplementedError
+        discovery_broadcast_packet = self.packet.generate_discovery()
+
+        for retransmission in range(self.config.N):
+
+        raise NotImplementedError
 
     def broadcast_ack(self):
-        return NotImplementedError
+        raise NotImplementedError
 
-    def has_neighbors(self):
+    def send_packets(self):
+        raise NotImplementedError
+
+    def receive_packets(self):
+        raise NotImplementedError
+
+    def any_neighbors(self):
         """
         True if it has neighbors, False otherwise
         :return: Bool
         """
-        return NotImplementedError
+        raise NotImplementedError
 
-    def have_neighbors_without_file(self):
-        return NotImplementedError
+    def any_neighbor_without_file(self):
+        raise NotImplementedError
 
     def any_neighbor_without_token(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def any_active_predecessor(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def return_token(self):
-        return NotImplementedError
+        raise NotImplementedError
+
+    def wait_token(self):
+        raise NotImplementedError
+
+    def pass_token(self):
+        raise NotImplementedError

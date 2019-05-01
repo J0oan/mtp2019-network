@@ -1,0 +1,11 @@
+
+{
+  "N": 2,
+  "n": 3,
+  "Tout_Broadcast": 2,
+  "Tout_ACK": 0.05,
+  "CW": 2,
+  "N_slots": 256
+}
+
+
