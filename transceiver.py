@@ -34,6 +34,7 @@ class Transceiver(object):
         radio.setAutoAck(False)
         radio.enableDynamicPayloads()
         radio.enableAckPayload()
+        radio.printdetails()
         return radio
 
     def read_data(self,buffer):
@@ -46,6 +47,8 @@ class Transceiver(object):
     def send_data(self,payload):
         self.write(payload)
 
+    def setchannel(self,channel):
+        self.setchannel(self,channel)
 
 
 
