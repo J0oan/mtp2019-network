@@ -1,0 +1,3 @@
+CE = 0
+CSN = 22
+CHANNEL = 0x60
