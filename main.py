@@ -6,17 +6,17 @@ import json
 
 
 def get_config(json_file):
-    with open(json_file, 'r') as config:
-        config_dict = json.load(config)
+    with open(json_file, 'r') as configuration:
+        config_dict = json.load(configuration)
 
-    config = Bunch(config_dict)
+    configuration = Bunch(config_dict)
 
-    return config, config_dict
+    return configuration, config_dict
 
 
 def process_config(json_file):
-    config, _ = get_config_from_json(json_file)
-    return config
+    configuration, _ = get_config_from_json(json_file)
+    return configuration
 
 
 def get_args():
@@ -30,72 +30,57 @@ def get_args():
     return args
 
 
+try:
+    args = get_args()
+    config = process_config(args.config)
+
+except:
+    print("missing or invalid arguments")
+    exit(0)
+
+role = check_role()
+
+config.role = role
+
+node = Node(config)
+
 while True:
-    # State Machine
-    node = Node()
 
-    role = check_role()
-    state = ''
+    node.check_receiver()
 
-    if role == "tx":
-        state = cte.INITIAL_TX
-    else:
-        state = cte.INITIAL_RX
+    if node.state is cte.BROADCAST_FLOODING:
+        node.retransmission = config.N
+        node.broadcast_flooding()
 
-    while True:
+        """if node.any_neighbor_without_file():
+            node.state = cte.SEND_PACKET
+        else:
+            node.state = cte.COMMUNICATION_OVER"""
 
-        if state is cte.INITIAL_TX:
-            state = cte.BROADCAST_FLOODING
+    elif node.state is cte.SEND_PACKET:
+        node.send_packets()
+        node.state = cte.PASS_TOKEN
 
-        elif state is cte.INITIAL_RX:
-            state = cte.BROADCAST_ACK
+    elif node.state is cte.RECEIVE_DATA:
+        node.receive_packets()
+        node.state = cte.WAIT_TOKEN
 
-        elif state is cte.BROADCAST_FLOODING:
-            node.broadcast_flooding()
+    elif node.state is cte.PASS_TOKEN:
+        node.pass_token()
+        node.state = cte.COMMUNICATION_OVER
 
-            if node.any_neighbor_without_file():
-                state = cte.SEND_PACKET
+    elif node.state is cte.WAIT_TOKEN:
+        node.wait_token()
+        node.state = cte.BROADCAST_FLOODING
+
+    elif node.state is cte.COMMUNICATION_OVER:
+        if node.any_neighbor_without_token():
+            # Consider neighbors with data and without token
+            node.state = cte.PASS_TOKEN
+
+        else:
+            if node.any_active_predecessor():
+                node.return_token()
+                stare = cte.COMMUNICATION_OVER
             else:
-                state = cte.COMMUNICATION_OVER
-
-        elif state is cte.BROADCAST_ACK:
-            node.broadcast_ack()
-            state = cte.RECEIVE_DATA
-
-        elif state is cte.SEND_PACKET:
-            node.send_packets()
-            state = cte.PASS_TOKEN
-
-        elif state is cte.RECEIVE_DATA:
-            node.receive_packets()
-            state = cte.WAIT_TOKEN
-
-        elif state is cte.PASS_TOKEN:
-            node.pass_token()
-            state = cte.COMMUNICATION_OVER
-
-        elif state is cte.WAIT_TOKEN:
-            node.wait_token()
-            state = cte.BROADCAST_FLOODING
-
-        elif state is cte.COMMUNICATION_OVER:
-            if node.any_neighbor_without_token():
-                # Consider neighbors with data and without token
-                state = cte.PASS_TOKEN
-
-            else:
-                if node.any_active_predecessor():
-                    node.return_token()
-                    stare = cte.COMMUNICATION_OVER
-                else:
-                    state = cte.END
-
-
-
-
-
-
-
-
-
-
+                node.state = cte.END

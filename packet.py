@@ -4,6 +4,7 @@
 class Packet(object):
     def __init__(self, config):
         self.config = config
+        self.origin = self.config.address
 
     def generate_discovery(self, origin):
         """
@@ -13,10 +14,9 @@ class Packet(object):
         """
         return
 
-    def generate_ack_discovery(self, origin, destination, flags):
+    def generate_ack_discovery(self, destination, flags):
         """
         Generar paquete ACK-Discovery con CRC y delvover array de bytes
-        :param origin:
         :param destination:
         :param flags:
         :return:
@@ -73,7 +73,7 @@ class Packet(object):
         """
         return
 
-    def decapsulate_packet(self):
+    def decapsulate_packet(self, packet):
         """
 
         :return:

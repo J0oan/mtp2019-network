@@ -15,6 +15,4 @@ class Transceiver(object):
         return cls("rx")
 
     def send_data(self):
-        raise
-
-
+        raise NotImplementedError
