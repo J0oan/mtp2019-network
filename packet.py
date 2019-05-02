@@ -6,7 +6,7 @@ class Packet(object):
         self.config = config
         self.origin = self.config.address
 
-    def generate_discovery(self, origin):
+    def generate_discovery(self):
         """
         Generar paquete Discovery con CRC y delvover array de bytes
         :param origin:
@@ -23,10 +23,9 @@ class Packet(object):
         """
         return
 
-    def generate_data(self, origin, destination, seqN, end, payload):
+    def generate_data(self, destination, seqN, end, payload):
         """
         Generar paquete ACK-Discovery con CRC y delvover array de bytes
-        :param origin:
         :param destination:
         :param seqN:
         :param end:
@@ -35,10 +34,9 @@ class Packet(object):
         """
         return
 
-    def generate_ack(self, origin, destination, seqN, type):
+    def generate_ack(self, destination, seqN, type):
         """
         Generar paquete ACK con CRC y delvover array de bytes
-        :param origin:
         :param destination:
         :param seqN:
         :param type:

@@ -43,7 +43,13 @@ role = check_role()
 
 config.role = role
 
-node = Node(config)
+# TODO read file
+if role == 'tx':
+    file = []
+else:
+    file = False
+
+node = Node(config, file)
 
 while True:
 
@@ -53,18 +59,15 @@ while True:
         node.retransmission = config.N
         node.broadcast_flooding()
 
-        """if node.any_neighbor_without_file():
-            node.state = cte.SEND_PACKET
-        else:
-            node.state = cte.COMMUNICATION_OVER"""
+    elif node.state is cte.CHOOSE_RECEIVER:
+        node.choose_receiver()
 
     elif node.state is cte.SEND_PACKET:
+        node.retransmission = config.n
         node.send_packets()
-        node.state = cte.PASS_TOKEN
 
     elif node.state is cte.RECEIVE_DATA:
         node.receive_packets()
-        node.state = cte.WAIT_TOKEN
 
     elif node.state is cte.PASS_TOKEN:
         node.pass_token()
