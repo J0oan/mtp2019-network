@@ -1,11 +1,12 @@
+import argparse
 import cte
-from node import Node
-from utils import check_role
 from bunch import Bunch
 import json
+from node import Node
+from utils import check_role
 
 
-def get_config(json_file):
+def get_config_from_json(json_file):
     with open(json_file, 'r') as configuration:
         config_dict = json.load(configuration)
 
