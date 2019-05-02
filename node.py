@@ -65,7 +65,8 @@ class Node(object):
                 "master": self.master
             }
             # Create packet in bytes to transmit and send packet
-            ack_packet = self.packet.generate_ack_discovery(self.predecessor, flags)
+            # TODO review LPC of function generate_ack_discovery
+            ack_packet = self.packet.generate_ack_discovery(self.predecessor, flags.file, flags.master)
             self.send_packet(ack_packet)
             # Discount retransmission and start timeout
             self.retransmission -= 1
@@ -83,6 +84,7 @@ class Node(object):
         Function to send data packet ACK
         :return:
         """
+        # TODO implement check in reception of end of file to send ack
         packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 0)
         self.send_packet(packet)
 
@@ -209,12 +211,19 @@ class Node(object):
             # Set state again to choose another successor for the token
             self.state = cte.CHOOSE_TOKEN
 
+    def send_end(self):
+        """
+        Function to pass to the neighbours an end of protocol packet
+        :return: None
+        """
+        # TODO send end of protocol packet
+
     def end_error(self):
         """
         Function to set the end state when some error happens that block the system
         :return:
         """
-        self.state = cte.END
+        self.state = cte.ERROR_END
 
     def check_receiver(self):
         """
@@ -234,7 +243,7 @@ class Node(object):
             if packet:
 
                 # Case waiting to Broadcast Discovery and received Broadcast Discovery Packet
-                if self.state == cte.BROADCAST_ACK and packet.type == cte.BROADCAST_DISCOVERY_PACKET:
+                if self.state == cte.BROADCAST_ACK and packet.type == cte.DISCOVERY_BROADCAST:
                     # Stop timeout of ACK Broadcast retransmission
                     self.off_timeout()
                     # Set State to wait end handshake, set predecessor, set retransmissions of ACK
@@ -249,13 +258,13 @@ class Node(object):
                     back_off.start()
 
                 # Case waiting to ACK end handshake Discovery and received ACK handshake
-                elif self.state == cte.IDLE_BROADCAST and packet.type == cte.ACK_PACKET:
+                elif self.state == cte.IDLE_BROADCAST and packet.type == cte.ACK_ACKDISCOVERY:
                     # Stop timeout of ACK Broadcast and set state to wait for data packet
                     self.off_timeout()
                     self.state = cte.IDLE_PACKET
 
                 # Case sent Broadcast discovery, waiting Discovery ACK and received Discovery ACK
-                elif packet.type == cte.BROADCAST_ACK_PACKET and self.state == cte.IDLE_FLOODING:
+                elif packet.type == cte.ACK_DISCOVERY and self.state == cte.IDLE_FLOODING:
                     # Create neighbor from data received
                     neighbor = {
                         'address': packet.origin,
@@ -268,7 +277,7 @@ class Node(object):
                     # TODO SEND ACK
 
                 # Case waiting data packet ack and received data packet ack
-                elif self.state == cte.IDLE_PACKET_ACK and packet.type == cte.DATA_ACK_PACKET:
+                elif self.state == cte.IDLE_PACKET_ACK and packet.type == cte.ACK_PACKET:
                     # Stop timeout for retransmit data packet
                     self.off_timeout()
                     # Set file index to next packet
@@ -293,6 +302,7 @@ class Node(object):
 
                 # TODO IDLE_TOKEN_ACK received token ack and send ACK
                 # TODO wait token and wait token ack
+                # TODO received end of protocol packet
 
     def send_packet(self, packet):
         """

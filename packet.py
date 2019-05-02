@@ -1,4 +1,3 @@
-# Clase paquete
 import crc16
 import cte
 
@@ -22,12 +21,12 @@ class Packet(object):
         return packet
 
     def generate_ack_discovery(self, destination, LPC, flag1, flag2):
-        """+
+        """
         Generar paquete ACK-Discovery con CRC y delvover array de bytes
         :param destination:
         :param LPC: Last ack flag
-        :param flags1: Has file
-        :param flags2: Has been master
+        :param flag1: Has file
+        :param flag2: Has been master
         :return:
         """
         chunk = ((destination & 0xf) << 4) | (self.origin &
@@ -140,36 +139,37 @@ class Packet(object):
             PT = ((packet[1] & 0x70) >> 4)
 
             if PT == 0:
-                return {origin: source, type: cte.DISCOVERY_BROADCAST}
+                return {"origin": source, "type": cte.DISCOVERY_BROADCAST}
 
             elif PT==1:
                 flag1 = ((packet[1] & 0x02) >> 1)
                 flag2 = (packet[1] & 0x01)
                 if ((packet[1] & 0x04) >> 2):  # Check LPC
-                    return {origin: source, type: cte.ACK_ACKDISCOVERY}
+                    return {"origin": source, "type": cte.ACK_ACKDISCOVERY}
                 else:
-                    return {origin: source, type: cte.ACK_DISCOVERY, flag1: flag1, flag2: flag2}
+                    return {"origin": source, "type": cte.ACK_DISCOVERY, "flag1": flag1, "flag2": flag2}
 
             elif PT==2:
+                # TODO shouldn't be a end of file field
                 secN = ((packet[1] & 0x80) >> 7)
                 payload = packet[2:pktlength-2]
-                return {origin: source, type: cte.DATA_PACKET, secN: secN, payload: payload}
+                return {"origin": source, "type": cte.DATA_PACKET, "secN": secN, "payload": payload}
 
             elif PT==3:
                 secN = ((packet[1] & 0x80) >> 7)
                 if (packet[1] & 0x02) >> 1: # Check LPC
-                    return {origin: source, type: cte.ACK_ACKPACKET}
+                    return {"origin": source, "type": cte.ACK_ACKPACKET}
                 else:
-                    return {origin: source, type: cte.ACK_PACKET, secN: secN}
+                    return {"origin": source, "type": cte.ACK_PACKET, "secN": secN}
 
             elif PT==4:
-                return {origin: source, type: cte.TOKEN_PACKET}
+                return {"origin": source, "type": cte.TOKEN_PACKET}
 
             elif PT==6:
-                return {origin: source, type: cte.ACK_TOKEN}
+                return {"origin": source, "type": cte.ACK_TOKEN}
 
             elif PT==5:
-                return {origin: source, type: cte.END_OF_TX}
+                return {"origin": source, "type": cte.END_OF_TX}
 
         else:
             return False

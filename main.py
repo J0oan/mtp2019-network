@@ -65,5 +65,11 @@ while True:
         # State to select a successor of the token
         node.choose_token_successor()
 
+    elif node.state is cte.END:
+        # State to send end of protocol
+        node.send_end()
+
 # General TODOs
 # TODO review all the necessary timeouts and if there must be different or is not necessary
+# TODO decided where to write the received file
+#  (suggestion: receive_packets if end of file)
