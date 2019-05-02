@@ -4,7 +4,8 @@ from bunch import Bunch
 import json
 from node import Node
 from utils import check_role
-
+import time
+import os
 
 def get_config_from_json(json_file):
     with open(json_file, 'r') as configuration:
@@ -43,7 +44,20 @@ role = check_role()
 
 config.role = role
 
-# TODO read file
+path = "texttosend"
+payload_size = 28
+
+for file in os.listdir(path):
+    if file.endswith(".txt"):
+        file_path = os.path.join(path, file)
+        file_pointer = open(file_path, 'r')
+    file_len = os.path.getsize(file_path)
+    radio_init()
+    text = file_pointer.read(payload_size)
+    time.sleep(10/1000)
+    radio.write(str(file_len))
+    time.sleep(10 / 1000)
+
 if role == 'tx':
     file = []
 else:
@@ -78,13 +92,7 @@ while True:
         node.state = cte.BROADCAST_FLOODING
 
     elif node.state is cte.COMMUNICATION_OVER:
-        if node.any_neighbor_without_token():
-            # Consider neighbors with data and without token
-            node.state = cte.PASS_TOKEN
+        node.return_token()
 
-        else:
-            if node.any_active_predecessor():
-                node.return_token()
-                stare = cte.COMMUNICATION_OVER
-            else:
-                node.state = cte.END
+    elif node.state is cte.CHOOSE_TOKEN:
+        node.choose_token_successor()

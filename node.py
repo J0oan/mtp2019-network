@@ -20,6 +20,7 @@ class Node(object):
         self.master = False if config.role == 'rx' else True
         self.file_index = 0
         self.successor = ''
+        self.token_successor = ''
 
         # Initialize timeout
         if self.state == cte.BROADCAST_ACK:
@@ -84,30 +85,48 @@ class Node(object):
         packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 0)
         self.send_packet(packet)
 
-    def any_neighbors(self):
-        """
-        True if it has neighbors, False otherwise
-        :return: Bool
-        """
-        raise NotImplementedError
-
-    def any_neighbor_without_file(self):
-        raise NotImplementedError
-
-    def any_neighbor_without_token(self):
-        raise NotImplementedError
-
     def any_active_predecessor(self):
         raise NotImplementedError
 
     def return_token(self):
-        raise NotImplementedError
+        if not self.predecessor:
+            self.state = cte.END
+        elif not self.any_active_predecessor():
+            self.state = cte.END
+        else:
+            if self.retransmission > 0:
+                self.timeout = threading.Timer(self.config.Tout_ACK, self.pass_token())
+                token = self.packet.generate_token_frame(self.token_predecessor)
+                self.send_packet(token)
+                self.timeout.start()
+                self.state = cte.IDLE_TOKEN_ACK
+                self.retransmission -= 1
 
     def wait_token(self):
-        raise NotImplementedError
+
+        token_buffer = []
+        radio_rx.read(token_buffer_buffer, radio.getDynamicPayloadSize())
+        packet = ''.join(chr(x) for x in token_buffer)
+        type_packet = unpacketack(packet)
+        if type_packet is TOKEN_PACKET:
+            node.state = cte.BROADCAST_FLOODING
+        elif type_packet is DISCOVERY_BROADCAST:
+            node.state = cte.BROADCAST_FLOODING
 
     def pass_token(self):
-        raise NotImplementedError
+
+        if self.retransmission > 0:
+            self.timeout = threading.Timer(self.config.Tout_ACK, self.pass_token())
+            token = self.packet.generate_token_frame(self.token_successor)
+            self.send_packet(token)
+            self.timeout.start()
+            self.state = cte.IDLE_TOKEN_ACK
+            self.retransmission -= 1
+
+        else:
+            del self.neighbors[self.token_successor]
+            self.state = cte.CHOOSE_TOKEN
+
 
     def end_error(self):
         self.state = cte.END
@@ -158,10 +177,22 @@ class Node(object):
                     self.state = cte.RECEIVE_DATA
 
     def send_packet(self, packet):
-        # TODO send merge transmitter functions
-        raise NotImplementedError
+        radio.write(packet)
 
     def off_timeout(self):
         if self.timeout:
             self.timeout.cancel()
             self.timeout = ''
+
+    def choose_token_successor(self):
+        possible_successor_token = list(filter(lambda successor: not successor.master and not successor.file_a_priori, self.neighbors))
+        if len(possible_successor_token) > 0:
+            self.successor = self.neighbors[random.randint(0, len(possible_successor_token) - 1)].address
+            self.state = cte.PASS_TOKEN
+        else:
+            possible_successor_token = list(filter(lambda successor: not successor.master, self.neighbors))
+            if len(possible_successor_token) > 0:
+                self.successor = self.neighbors[random.randint(0, len(possible_successor_token) - 1)].address
+                self.state = cte.PASS_TOKEN
+            else:
+                self.state = cte.COMMUNICATION_OVER
