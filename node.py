@@ -376,6 +376,19 @@ class Node:
                     else:
                         self.state = cte.SEND_PACKET
 
+                # Case waiting data ack confirmation to end the communication
+                elif self.state == cte.DATA_END and packet.type == cte.ACK_PACKET:
+                    # Stop timeout for retransmit data ack
+                    self.off_timeout()
+                    self.state = cte.WAIT_TOKEN
+
+                # Case waiting token ack confirmation to become the master
+                elif self.state == cte.WAIT_ACK_TOKEN_CONF and packet.type == cte.ACK_TOKEN:
+                    # Stop timeout for retransmit data ack
+                    self.off_timeout()
+                    self.state = cte.BROADCAST_FLOODING
+                    self.master = True
+
                 # Case waiting data packet and data packet received
                 elif packet['type'] == cte.DATA_PACKET:
                     self.off_timeout_general()
