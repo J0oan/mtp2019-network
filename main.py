@@ -47,15 +47,17 @@ while True:
 
     elif node.state is cte.RECEIVE_DATA:
         # If the node has received a new data packet send ack
+        node.retransmission = config.n
         node.receive_packets()
 
     elif node.state is cte.PASS_TOKEN:
         # If there is a successor to pass the token
         node.pass_token()
 
-    elif node.state is cte.WAIT_TOKEN:
-        # TODO should this be here?
-        node.wait_token()
+    elif node.state is cte.RECEIVE_TOKEN:
+        # If passive node has received token packet
+        node.retransmission = config.n
+        node.receive_token()
 
     elif node.state is cte.COMMUNICATION_OVER:
         # If this network branch is completed return token
@@ -71,5 +73,7 @@ while True:
 
 # General TODOs
 # TODO review all the necessary timeouts and if there must be different or is not necessary
+#   (suggestion): Make a class to manage all timeouts types: backoff, timeout and timeout_general
+# TODO: Backoff never stopped?
 # TODO decided where to write the received file
 #  (suggestion: receive_packets if end of file)
