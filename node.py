@@ -3,6 +3,7 @@ from packet import Packet
 from transceiver import Transceiver
 import cte
 import random
+import os
 
 
 class Node(object):
@@ -123,6 +124,8 @@ class Node(object):
             self.send_packet(packet)
             # Set state to wait packet
             self.state = cte.WAIT_TOKEN
+            # Save File
+            self.write_file(self)
 
     def choose_receiver(self):
         """
@@ -148,7 +151,7 @@ class Node(object):
         # Check if retransmissions are reached
         if self.retransmission > 0:
             # Set timeout of the next data frame to sent
-            self.timeout = threading.Timer(self.config.Tout_ACK, self.send_packets)
+            self.timeout = threading.Timer(self.config.Tout_Data_ACK, self.send_packets)
             # Check if this frame is the last one and generate the data packet to send
             end = True if self.file_index == len(self.file) - 1 else False
             packet = self.packet.generate_data(self.successor, self.file_index, end, self.file[self.file_index])
@@ -268,6 +271,15 @@ class Node(object):
         Function to pass to the neighbours an end of protocol packet
         :return: None
         """
+        if self.retransmission > 0:
+            self.packet = self.packet.end_protocol()
+            self.send_packet(self.packet)
+            self.retransmission -=1
+
+        else:
+            raise NotImplementedError
+            # TODO shutDown
+
         # TODO send end of protocol packet
 
     def error_tout_data(self):
@@ -341,7 +353,6 @@ class Node(object):
                     # if previous packet was the last packet send ack and get another receiver
                     # else send next packet
                     if self.file_index == len(self.file):
-                        # TODO send ack
                         self.neighbors[self.successor].file = True
                         self.state = cte.CHOOSE_RECEIVER
                     else:
@@ -415,6 +426,9 @@ class Node(object):
                     self.master = True
                     self.state = cte.BROADCAST_FLOODING
 
+
+
+
                 # TODO WAIT_ACK_TOKEN_CONF state but never ACK_token received?
                 # TODO received end of protocol packet
 
@@ -448,3 +462,11 @@ class Node(object):
             # Cancel it and clean it
             self.timeout_general.cancel()
             self.timeout_general = None
+
+
+    def write_file(self):
+        """ Function that stores the file in memory """
+
+        with open(self.config.File_Path_Output, "wb") as f:
+            for chunk in self.file:
+                f.write(chunk)

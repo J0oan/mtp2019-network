@@ -54,15 +54,28 @@ def get_args():
     return args
 
 
-def get_file():
-    # TODO review get_file
-    path = "texttosend"
-    payload_size = 28
+def get_file(config):
+    """ Gets the provided file and reads its content as bytes,
+    after that, it stores everything in the variable payload_list,
+    which it returns. """
 
-    for file in os.listdir(path):
-        if file.endswith(".txt"):
-            file_path = os.path.join(path, file)
-            file_pointer = open(file_path, 'r')
-            file_len = os.path.getsize(file_path)
-            text = file_pointer.read(payload_size)
-            return text
+    payload_list = list()
+
+    if os.path.isfile(config.File_Path_Input):
+        print("Loading File in: " + config.File_Path_Input)
+        with open(config.File_Path_Input, 'rb') as f:
+            while True:
+                chunk = f.read(config.Paylaod_Size)
+                if chunk:
+                    payload_list.append(chunk)
+                else:
+                    break
+    else:
+        print("ERROR: file does not exist in PATH: " + config.File_Path_Input)
+
+    print("Length of the file in chunks: " + str(len(payload_list)))
+
+    return payload_list
+
+
+
