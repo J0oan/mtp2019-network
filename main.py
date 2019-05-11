@@ -17,7 +17,7 @@ except:
 role = check_role()
 
 if role == 'tx':
-    file = get_file()
+    file = get_file(config)
 else:
     file = False
 
@@ -42,7 +42,7 @@ while True:
     elif node.state is cte.SEND_PACKET:
         # If node state is send data packet set retransmission for this packet
         # and start transmission
-        node.retransmission = config.n
+        node.retransmission = config.nData
         node.send_packets()
 
     elif node.state is cte.RECEIVE_DATA:
@@ -55,7 +55,6 @@ while True:
 
     elif node.state is cte.RECEIVE_TOKEN:
         # If passive node has received token packet
-        node.retransmission = config.n
         node.receive_token()
 
     elif node.state is cte.COMMUNICATION_OVER:
@@ -68,6 +67,7 @@ while True:
 
     elif node.state is cte.END:
         # State to send end of protocol
+        node.retransmission = config.nEnd
         node.send_end()
 
 # General TODOs

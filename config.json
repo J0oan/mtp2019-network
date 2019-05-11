@@ -15,6 +15,9 @@
   "N_slots": 10,
   "T_slot": 0.017,
   "Tout_Broadcast_Receiver": 60,
+  "Payload_size": 30,
+  "File_Path_Input": "/home/pi/mtp2019-netowrk/Files/Input/*.txt",
+  "File_Path_Output": "/home/pi/mtp2019-netowrk/Files/Output/file.txt",
   "address": 1515
 }
 
