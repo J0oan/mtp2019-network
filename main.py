@@ -55,7 +55,6 @@ while True:
 
     elif node.state is cte.RECEIVE_TOKEN:
         # If passive node has received token packet
-        node.retransmission = config.n
         node.receive_token()
 
     elif node.state is cte.COMMUNICATION_OVER:

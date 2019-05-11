@@ -24,7 +24,6 @@ class Node(object):
         self.file_index = 0
         self.eot = 0
         self.successor = None
-        self.token_successor = None
 
         # Set timeout general if receiver before set general error
         if self.state == cte.BROADCAST_ACK:
@@ -123,7 +122,7 @@ class Node(object):
             packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 1)
             self.send_packet(packet)
             # Set state to wait packet
-            self.state = cte.WAIT_TOKEN
+            self.state = cte.PULP
             # Save File
             self.write_file(self)
 
@@ -181,8 +180,8 @@ class Node(object):
             self.state = cte.END
         else:
             if self.retransmission > 0:
-                self.timeout = threading.Timer(self.config.Tout_ACK, self.pass_token())
-                token = self.packet.generate_token_frame(self.token_predecessor)
+                self.timeout = threading.Timer(self.config.Tout_ACK, self.pass_token)
+                token = self.packet.generate_token_frame(self.predecessor)
                 self.send_packet(token)
                 self.timeout.start()
                 self.state = cte.IDLE_TOKEN_ACK
@@ -221,7 +220,7 @@ class Node(object):
             # Set timeout for retransmission of token
             self.timeout = threading.Timer(self.config.Tout_ACK, self.pass_token)
             # Get token packet and send it
-            token = self.packet.generate_token_frame(self.token_successor)
+            token = self.packet.generate_token_frame(self.successor)
             # TODO is it necessary to have token_successor?
             self.send_packet(token)
             # Start timeout and set state to wait token ack
@@ -232,7 +231,7 @@ class Node(object):
         else:
             # If number of retransmission of token is reached the successor
             # Is considered death and deleted from the list of neighbors
-            del self.neighbors[self.token_successor]
+            del self.neighbors[self.successor]
             # Set state again to choose another successor for the token
             self.state = cte.CHOOSE_TOKEN
 
@@ -244,27 +243,23 @@ class Node(object):
         # Generate ACK packet for token acknowledgment
         packet_ack = self.packet.generate_ack_token_frame(self.predecessor)
         self.send_packet(packet_ack)
+        self.state = cte.PULP
+        self.timeout_general = threading.Timer(self.config.Tout_EOP, self.end_error)
 
     def receive_token(self):
         """
         Send ACK token to updated predecessor
         :return:
         """
-        # Check if retransmissions are reached
-        if self.retransmission > 0:
-            # set state to wait broadcast ACK, set timeout to next retransmission
-            self.timeout = threading.Timer(self.config.Tout_ACK, self.receive_token)
-            # Generate ACK packet for token acknowledgment and send it
-            self.token_ack()
-            # reduce retransmission counter and start timeout
-            self.retransmission -= 1
-            self.timeout.start()
-            # Set State to wait end of handshake
-            self.state = cte.WAIT_ACK_TOKEN_CONF
-        else:
-            # once retransmissions overpassed, set state error
-            self.state = cte.WAIT_TOKEN
-            self.timeout = ''
+
+        # set state to wait broadcast ACK, set timeout to next retransmission
+        self.timeout = threading.Timer(self.config.Tout_ACK, self.receive_token)
+        # Generate ACK packet for token acknowledgment and send it
+        self.token_ack()
+        self.timeout.start()
+        # Set State to wait end of handshake
+        self.state = cte.WAIT_ACK_TOKEN_CONF
+
 
     def send_end(self):
         """
@@ -280,7 +275,7 @@ class Node(object):
             raise NotImplementedError
             # TODO shutDown
 
-        # TODO send end of protocol packet
+        # TODO send end of protocol packet retransmit
 
     def error_tout_data(self):
         """
@@ -313,12 +308,18 @@ class Node(object):
             # Check if decapsulated packet is correct
             if packet:
 
-                # Case waiting to Broadcast Discovery and received Broadcast Discovery Packet
-                if self.state == cte.BROADCAST_ACK and packet.type == cte.DISCOVERY_BROADCAST:
-                    # Set predecessor
-                    self.predecessor = packet.origin
-                    # Send corresponding ACKs to predecessor
-                    self.receive_broadcast_discovery()
+                # Case received Broadcast Discovery Packet
+                if packet.type == cte.DISCOVERY_BROADCAST:
+                    # waiting to Broadcast Discovery
+                    if self.state == cte.BROADCAST_ACK:
+                        # Set predecessor
+                        self.predecessor = packet.origin
+                        # Send corresponding ACKs to predecessor
+                        self.receive_broadcast_discovery()
+                    # Waiting to Token
+                    elif self.state == cte.PULP:
+                        # Send corresponding ACKs
+                        self.receive_broadcast_discovery(packet.origin, self.state)
 
                 # Case waiting to ACK end handshake Discovery and received ACK handshake
                 elif self.state == cte.IDLE_BROADCAST and packet.type == cte.ACK_ACKDISCOVERY:
@@ -371,63 +372,40 @@ class Node(object):
                     self.state = cte.RECEIVE_DATA
 
                 # Case waiting Token and receive the Token packet
-                elif self.state == cte.WAIT_TOKEN and packet.type == cte.TOKEN_PACKET:
-                    # Update predecessor as may not be the same that sent the data file
-                    self.predecessor = packet.origin
+                elif packet.type == cte.TOKEN_PACKET:
+                    # self.state == cte.PULP and self.state == cte.WAIT_ACK_TOKEN_CONF
+                    self.off_timeout_general()
+                    if packet.origin != self.successor:
+                        # Update predecessor as may not be the same that sent the data file
+                        self.predecessor = packet.origin
                     # Set state to receive the token
                     self.state = cte.RECEIVE_TOKEN
 
                 # Case waiting Token and receive End of Tx packet
-                elif self.state == cte.WAIT_TOKEN and packet.type == cte.END_OF_TX:
+                elif self.state == cte.PULP and packet.type == cte.END_OF_TX:
                     # Set state to end communication
                     self.state = cte.END
 
                 # Case waiting Token and receiving Token-ACK
-                elif self.state == cte.WAIT_TOKEN and packet.type == cte.ACK_TOKEN:
-                    # Send Token-ACK
-                    self.token_ack()
+                elif packet.type == cte.ACK_TOKEN:
+                    # Case waiting end of Token Handshake from master and receiving correct Token ACK
+                    if self.state == cte.WAIT_ACK_TOKEN_CONF:
+                        self.off_timeout()
+                        # Set state to broadcast flooding to discover neighbors
+                        self.master = True
+                        self.state = cte.BROADCAST_FLOODING
+                    # state == PULP or WAIT_END or IDLE_TOKEN_ACK
+                    elif self.state == cte.PULP or self.state == cte.IDLE_TOKEN_ACK:
+                        self.off_timeout_general()
+                        self.token_ack()
 
                 # Case waiting Token and receiving last data packet
-                elif self.state == cte.WAIT_TOKEN and packet.type == cte.DATA_PACKET:
+                elif self.state == cte.PULP and packet.type == cte.DATA_PACKET:
                     # Set eot transmission flag
                     self.eot = packet.eot
                     # get last ACK and send it
                     packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 1)
                     self.send_packet(packet)
-
-                elif self.state == cte.WAIT_TOKEN and packet.type == cte.DISCOVERY_BROADCAST:
-                    self.receive_broadcast_discovery(packet.origin, cte.WAIT_TOKEN)
-
-                # Case waiting Token ACK from passive node
-                elif self.state == cte.IDLE_TOKEN_ACK and packet.type == cte.ACK_TOKEN:
-                    self.off_timeout()
-                    # Send End Handshake ACK to acknowledge TOKEN to predecessor
-                    self.token_ack()
-                    # Change to passive node but the state continues to be IDLE_TOKEN_ACK
-                    self.master = False
-
-                # Case waiting Token ACK from passive node but receiving discovery packet
-                elif self.state == cte.IDLE_TOKEN_ACK and packet.type == cte.DISCOVERY_BROADCAST:
-                    # Send corresponding ACKs
-                    self.receive_broadcast_discovery(packet.origin, cte.WAIT_TOKEN)
-
-                # Case waiting end of Token Handshake from master but receiving Token packet again
-                elif self.state == cte.WAIT_ACK_TOKEN_CONF and packet.type == cte.TOKEN_PACKET:
-                    self.off_timeout()
-                    # Update predecessor as may not be the same that sent the data file
-                    self.predecessor = packet.origin
-                    # Set state to receive token to acknowledge it again
-                    self.state = cte.RECEIVE_TOKEN
-
-                # Case waiting end of Token Handshake from master and receiving correct Token ACK
-                elif self.state == cte.WAIT_ACK_TOKEN_CONF and packet.type == cte.ACK_TOKEN:
-                    self.off_timeout()
-                    # Set state to broadcast flooding to discover neighbors
-                    self.master = True
-                    self.state = cte.BROADCAST_FLOODING
-
-
-
 
                 # TODO WAIT_ACK_TOKEN_CONF state but never ACK_token received?
                 # TODO received end of protocol packet
