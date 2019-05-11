@@ -9,24 +9,25 @@ class Node(object):
     def __init__(self, config, file):
         self.config = config
         self.state = cte.BROADCAST_FLOODING if config.role == 'tx' else cte.BROADCAST_ACK
+        self.last_state = None
         self.packet = Packet(self.config)
         self.transmitter = Transceiver.transmitter()
         self.receiver = Transceiver.receiver()
         self.retransmission = 0
-        self.timeout = ''
-        self.timeout_general = ''
+        self.timeout = None
+        self.timeout_general = None
         self.neighbors = {}
-        self.predecessor = ''
+        self.predecessor = None
         self.file = file
         self.master = False if config.role == 'rx' else True
         self.file_index = 0
         self.eot = 0
-        self.successor = ''
-        self.token_successor = ''
+        self.successor = None
+        self.token_successor = None
 
         # Set timeout general if receiver before set general error
         if self.state == cte.BROADCAST_ACK:
-            self.timeout_general = threading.Timer(self.config.Tout_Broadcast_Receiver, self.end_error)
+            self.timeout_general = threading.Timer(self.config.Tout_EOP, self.end_error)
             self.timeout_general.start()
 
     def broadcast_flooding(self):
@@ -38,7 +39,7 @@ class Node(object):
         if self.retransmission > 0:
             # set state to wait broadcast ACK, set timeout to next retransmission
             self.state = cte.IDLE_FLOODING
-            self.timeout = threading.Timer(self.config.Tout_Broadcast, self.broadcast_flooding)
+            self.timeout = threading.Timer(self.config.Tout_Discovery, self.broadcast_flooding)
             # get broadcast packet to send and send it
             discovery_broadcast_packet = self.packet.generate_discovery()
             self.send_packet(discovery_broadcast_packet)
@@ -52,24 +53,23 @@ class Node(object):
             # clean timeout
             self.timeout = ''
 
-    def broadcast_ack(self, predecessor=None, last_state=None):
+    def broadcast_ack(self, _predecessor=None):
         """
         Send broadcast ACK to the transmitter
         :return: None
         """
-        predecessor = predecessor if predecessor else self.predecessor
+        predecessor = _predecessor if _predecessor else self.predecessor
         # Check if retransmissions are reached
         if self.retransmission > 0:
             # Set timeout to retransmit broadcast ACK
-            self.timeout = threading.Timer(self.config.Tout_ACK, self.broadcast_ack)
+            self.timeout = threading.Timer(self.config.Tout_Discovery_ACK, self.broadcast_ack, [predecessor])
             # Set flags to send in the ACK
             flags = {
                 "file": False if not self.file else True,
                 "master": self.master
             }
             # Create packet in bytes to transmit and send packet
-            # TODO review LPC of function generate_ack_discovery
-            ack_packet = self.packet.generate_ack_discovery(predecessor, flags.file, flags.master)
+            ack_packet = self.packet.generate_ack_discovery(self.predecessor, flags.file, flags.master)
             self.send_packet(ack_packet)
             # Discount retransmission and start timeout
             self.retransmission -= 1
@@ -77,26 +77,29 @@ class Node(object):
 
         else:
             # retransmissions reached, transmitter considered death set state to wait broadcast discovery packet
-            self.state = cte.BROADCAST_ACK
+            self.state = self.last_state if self.last_state else cte.BROADCAST_ACK
             # Set and start timeout general of receiver before set general error
-            self.timeout = threading.Timer(self.config.Tout_Broadcast_Receiver, self.end_error)
+            self.timeout = threading.Timer(self.config.Tout_EOP, self.end_error)
             self.timeout.start()
 
-    def receive_broadcast_discovery(self):
+    def receive_broadcast_discovery(self, _predecessor=None, _last_state=None):
         """
         Corresponding actions after receiving broadcast discovery packet
         :return:
         """
         # Stop timeout of ACK Broadcast retransmission
-        self.off_timeout()
+        self.off_timeout_general()
+
+        predecessor = _predecessor if _predecessor else self.predecessor
+        self.last_state = _last_state
         # Set State to wait end handshake set retransmissions of ACK
         self.state = cte.IDLE_BROADCAST
-        self.retransmission = self.config.n
+        self.retransmission = self.config.nDiscovery_ACK
 
         # Get a random slot within the range of slots from config
         slot = random.randint(0, self.config.N_slots)
         # Set and start timeout of back off according to slot and time slot from config.
-        back_off = threading.Timer(self.config.T_slot * slot, self.broadcast_ack)
+        back_off = threading.Timer(self.config.T_slot * slot, self.broadcast_ack, [predecessor])
         back_off.start()
 
     def receive_packets(self):
@@ -115,21 +118,11 @@ class Node(object):
             self.timeout_general.start()
 
         else:
-            if self.retransmission > 0:
-                # Set timeout to retransmit last ACK
-                self.timeout = threading.Timer(self.config.Tout_ACK, self.receive_packets)
-                # get last ACK and send it
-                packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 1)
-                self.send_packet(packet)
-                # Set state to wait ack from the transmitter
-                self.state = cte.DATA_END
-                # reduce retransmission counter and start timeout
-                self.retransmission -= 1
-                self.timeout.start()
-
-            else:
-                self.state = cte.BROADCAST_ACK
-                self.timeout = ''
+            # get last ACK and send it
+            packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 1)
+            self.send_packet(packet)
+            # Set state to wait packet
+            self.state = cte.WAIT_TOKEN
 
     def choose_receiver(self):
         """
@@ -277,13 +270,19 @@ class Node(object):
         """
         # TODO send end of protocol packet
 
+    def error_tout_data(self):
+        """
+        Function to set the end state when Tout_Data expires
+        :return:
+        """
+        self.state = cte.BROADCAST_ACK
+
     def end_error(self):
         """
         Function to set the end state when some error happens that block the system
         :return:
         """
         self.state = cte.ERROR_END
-        # TODO: When this state is set, then return to BROADCAST_ACK?
 
     def check_receiver(self):
         """
@@ -313,10 +312,9 @@ class Node(object):
                 elif self.state == cte.IDLE_BROADCAST and packet.type == cte.ACK_ACKDISCOVERY:
                     # Stop timeout of ACK Broadcast and set state to wait for data packet
                     self.off_timeout()
-                    self.state = cte.IDLE_PACKET
-                    # TODO: Check if this timeout time is correct
+                    self.state = self.last_state if self.last_state else cte.IDLE_PACKET
                     # Set timeout for waiting data packets and start it
-                    self.timeout_general = threading.Timer(self.config.Tout_Broadcast_Receiver, self.end_error)
+                    self.timeout_general = threading.Timer(self.config.Tout_Data, self.error_tout_data)
                     self.timeout_general.start()
 
                 # Case sent Broadcast discovery, waiting Discovery ACK and received Discovery ACK
@@ -329,8 +327,10 @@ class Node(object):
                         'file_a_priory': packet.flags.file
                     }
                     # Add neighbor to list
-                    self.neighbors[neighbor.address] = neighbor
-                    # TODO SEND ACK
+                    self.neighbors[neighbor["address"]] = neighbor
+                    # Send Discovery-ACK
+                    packet = self.packet.generate_ack(self, neighbor["address"], 0, 0)
+                    self.send_packet(packet)
 
                 # Case waiting data packet ack and received data packet ack
                 elif self.state == cte.IDLE_PACKET_ACK and packet.type == cte.ACK_PACKET:
@@ -359,30 +359,12 @@ class Node(object):
                     # Send ACK
                     self.state = cte.RECEIVE_DATA
 
-                # Case waiting data ack confirmation to end the communication
-                elif self.state == cte.DATA_END and packet.type == cte.ACK_PACKET:
-                    # Stop timeout for retransmit data ack
-                    self.off_timeout()
-                    self.state = cte.WAIT_TOKEN
-
                 # Case waiting Token and receive the Token packet
                 elif self.state == cte.WAIT_TOKEN and packet.type == cte.TOKEN_PACKET:
                     # Update predecessor as may not be the same that sent the data file
                     self.predecessor = packet.origin
                     # Set state to receive the token
                     self.state = cte.RECEIVE_TOKEN
-
-                # Case waiting Token and receive the Token packet
-                elif self.state == cte.WAIT_TOKEN and packet.type == cte.DISCOVERY_BROADCAST:
-                    self.state = cte.IDLE_BROADCAST
-                    self.predecessor = packet.origin
-                    self.retransmission = self.config.n
-
-                    # Get a random slot within the range of slots from config
-                    slot = random.randint(0, self.config.N_slots)
-                    # Set and start timeout of back off according to slot and time slot from config.
-                    back_off = threading.Timer(self.config.T_slot * slot, self.broadcast_ack)
-                    back_off.start()
 
                 # Case waiting Token and receive End of Tx packet
                 elif self.state == cte.WAIT_TOKEN and packet.type == cte.END_OF_TX:
@@ -403,7 +385,7 @@ class Node(object):
                     self.send_packet(packet)
 
                 elif self.state == cte.WAIT_TOKEN and packet.type == cte.DISCOVERY_BROADCAST:
-                    self.receive_broadcast_discovery()
+                    self.receive_broadcast_discovery(packet.origin, cte.WAIT_TOKEN)
 
                 # Case waiting Token ACK from passive node
                 elif self.state == cte.IDLE_TOKEN_ACK and packet.type == cte.ACK_TOKEN:
@@ -415,10 +397,8 @@ class Node(object):
 
                 # Case waiting Token ACK from passive node but receiving discovery packet
                 elif self.state == cte.IDLE_TOKEN_ACK and packet.type == cte.DISCOVERY_BROADCAST:
-                    # Set predecessor
-                    self.predecessor = packet.origin
-                    # Send corresponding ACKs to predecessor
-                    self.receive_broadcast_discovery()
+                    # Send corresponding ACKs
+                    self.receive_broadcast_discovery(packet.origin, cte.WAIT_TOKEN)
 
                 # Case waiting end of Token Handshake from master but receiving Token packet again
                 elif self.state == cte.WAIT_ACK_TOKEN_CONF and packet.type == cte.TOKEN_PACKET:
@@ -456,4 +436,15 @@ class Node(object):
         if self.timeout:
             # Cancel it and clean it
             self.timeout.cancel()
-            self.timeout = ''
+            self.timeout = None
+
+    def off_timeout_general(self):
+        """
+        Function to turn off the timeout
+        :return: None
+        """
+        # First check if there is an active timeout
+        if self.timeout_general:
+            # Cancel it and clean it
+            self.timeout_general.cancel()
+            self.timeout_general = None

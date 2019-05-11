@@ -32,7 +32,7 @@ while True:
     if node.state is cte.BROADCAST_FLOODING:
         # If node state is broadcast flooding set retransmission of state
         # and begin broadcast transmission
-        node.retransmission = config.N
+        node.retransmission = config.nDiscovery
         node.broadcast_flooding()
 
     elif node.state is cte.CHOOSE_RECEIVER:
@@ -47,7 +47,6 @@ while True:
 
     elif node.state is cte.RECEIVE_DATA:
         # If the node has received a new data packet send ack
-        node.retransmission = config.n
         node.receive_packets()
 
     elif node.state is cte.PASS_TOKEN:
