@@ -1,73 +1,79 @@
 import cte
 from node import Node
-from utils import check_role
+from utils import check_role, get_args, process_config, get_file
 
+
+try:
+    # Get arguments
+    args = get_args()
+    # Get config file from arguments
+    config = process_config(args.config)
+except:
+    print("missing or invalid arguments")
+    exit(0)
+
+
+# Get role of node
+role = check_role()
+
+if role == 'tx':
+    file = get_file()
+else:
+    file = False
+
+# Create node entity according to config and pass file if it is possible.
+node = Node(config, file)
+
+# Main loop
 while True:
-    # State Machine
-    node = Node()
+    # Check if packet received
+    node.check_receiver()
 
-    role = check_role()
-    state = ''
+    if node.state is cte.BROADCAST_FLOODING:
+        # If node state is broadcast flooding set retransmission of state
+        # and begin broadcast transmission
+        node.retransmission = config.N
+        node.broadcast_flooding()
 
-    if role == "tx":
-        state = cte.INITIAL_TX
-    else:
-        state = cte.INITIAL_RX
+    elif node.state is cte.CHOOSE_RECEIVER:
+        # If node state is choose receiver, execute its function
+        node.choose_receiver()
 
-    while True:
+    elif node.state is cte.SEND_PACKET:
+        # If node state is send data packet set retransmission for this packet
+        # and start transmission
+        node.retransmission = config.n
+        node.send_packets()
 
-        if state is cte.INITIAL_TX:
-            state = cte.BROADCAST_FLOODING
+    elif node.state is cte.RECEIVE_DATA:
+        # If the node has received a new data packet send ack
+        node.retransmission = config.n
+        node.receive_packets()
 
-        elif state is cte.INITIAL_RX:
-            state = cte.BROADCAST_ACK
+    elif node.state is cte.PASS_TOKEN:
+        # If there is a successor to pass the token
+        node.pass_token()
 
-        elif state is cte.BROADCAST_FLOODING:
-            node.broadcast_flooding()
+    elif node.state is cte.RECEIVE_TOKEN:
+        # If passive node has received token packet
+        node.retransmission = config.n
+        node.receive_token()
 
-            if node.any_neighbor_without_file():
-                state = cte.SEND_PACKET
-            else:
-                state = cte.COMMUNICATION_OVER
+    elif node.state is cte.COMMUNICATION_OVER:
+        # If this network branch is completed return token
+        node.return_token()
 
-        elif state is cte.BROADCAST_ACK:
-            node.broadcast_ack()
-            state = cte.RECEIVE_DATA
+    elif node.state is cte.CHOOSE_TOKEN:
+        # State to select a successor of the token
+        node.choose_token_successor()
 
-        elif state is cte.SEND_PACKET:
-            node.send_packets()
-            state = cte.PASS_TOKEN
+    elif node.state is cte.END:
+        # State to send end of protocol
+        node.send_end()
 
-        elif state is cte.RECEIVE_DATA:
-            node.receive_packets()
-            state = cte.WAIT_TOKEN
-
-        elif state is cte.PASS_TOKEN:
-            node.pass_token()
-            state = cte.COMMUNICATION_OVER
-
-        elif state is cte.WAIT_TOKEN:
-            node.wait_token()
-            state = cte.BROADCAST_FLOODING
-
-        elif state is cte.COMMUNICATION_OVER:
-            if node.any_neighbor_without_token():
-                # Consider neighbors with data and without token
-                state = cte.PASS_TOKEN
-
-            else:
-                if node.any_active_predecessor():
-                    node.return_token()
-                    stare = cte.COMMUNICATION_OVER
-                else:
-                    state = cte.END
-
-
-
-
-
-
-
-
-
-
+# General TODOs
+# TODO review all the necessary timeouts and if there must be different or is not necessary
+#   (suggestion): Make a class to manage all timeouts types: backoff, timeout and timeout_general
+# TODO: Backoff never stopped?
+# TODO decided where to write the received file
+#  (suggestion: receive_packets if end of file)

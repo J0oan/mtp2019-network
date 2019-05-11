@@ -5,7 +5,10 @@
   "Tout_Broadcast": 2,
   "Tout_ACK": 0.05,
   "CW": 2,
-  "N_slots": 256
+  "N_slots": 256,
+  "T_slot": 0.017,
+  "Tout_Broadcast_Receiver": 60,
+  "address": 1515
 }
 
 
