@@ -26,8 +26,8 @@ class Node(object):
 
         # Set timeout general if receiver before set general error
         if self.state == cte.BROADCAST_ACK:
-            self.timeout = threading.Timer(self.config.Tout_Broadcast_Receiver, self.end_error)
-            self.timeout.start()
+            self.timeout_general = threading.Timer(self.config.Tout_Broadcast_Receiver, self.end_error)
+            self.timeout_general.start()
 
     def broadcast_flooding(self):
         """
@@ -52,11 +52,12 @@ class Node(object):
             # clean timeout
             self.timeout = ''
 
-    def broadcast_ack(self):
+    def broadcast_ack(self, predecessor=None, last_state=None):
         """
         Send broadcast ACK to the transmitter
         :return: None
         """
+        predecessor = predecessor if predecessor else self.predecessor
         # Check if retransmissions are reached
         if self.retransmission > 0:
             # Set timeout to retransmit broadcast ACK
@@ -68,7 +69,7 @@ class Node(object):
             }
             # Create packet in bytes to transmit and send packet
             # TODO review LPC of function generate_ack_discovery
-            ack_packet = self.packet.generate_ack_discovery(self.predecessor, flags.file, flags.master)
+            ack_packet = self.packet.generate_ack_discovery(predecessor, flags.file, flags.master)
             self.send_packet(ack_packet)
             # Discount retransmission and start timeout
             self.retransmission -= 1
@@ -382,6 +383,27 @@ class Node(object):
                     # Set and start timeout of back off according to slot and time slot from config.
                     back_off = threading.Timer(self.config.T_slot * slot, self.broadcast_ack)
                     back_off.start()
+
+                # Case waiting Token and receive End of Tx packet
+                elif self.state == cte.WAIT_TOKEN and packet.type == cte.END_OF_TX:
+                    # Set state to end communication
+                    self.state = cte.END
+
+                # Case waiting Token and receiving Token-ACK
+                elif self.state == cte.WAIT_TOKEN and packet.type == cte.ACK_TOKEN:
+                    # Send Token-ACK
+                    self.token_ack()
+
+                # Case waiting Token and receiving last data packet
+                elif self.state == cte.WAIT_TOKEN and packet.type == cte.DATA_PACKET:
+                    # Set eot transmission flag
+                    self.eot = packet.eot
+                    # get last ACK and send it
+                    packet = self.packet.generate_ack(self.predecessor, self.file_index % 2 - 1, 1)
+                    self.send_packet(packet)
+
+                elif self.state == cte.WAIT_TOKEN and packet.type == cte.DISCOVERY_BROADCAST:
+                    self.receive_broadcast_discovery()
 
                 # Case waiting Token ACK from passive node
                 elif self.state == cte.IDLE_TOKEN_ACK and packet.type == cte.ACK_TOKEN:

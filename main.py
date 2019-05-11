@@ -74,6 +74,6 @@ while True:
 # General TODOs
 # TODO review all the necessary timeouts and if there must be different or is not necessary
 #   (suggestion): Make a class to manage all timeouts types: backoff, timeout and timeout_general
-# TODO: Backoff never stopped?
 # TODO decided where to write the received file
+# TODO: ACKACKDIscovery
 #  (suggestion: receive_packets if end of file)
