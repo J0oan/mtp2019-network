@@ -4,13 +4,6 @@ import argparse
 import os
 
 
-def check_role():
-    """
-
-    :return:
-    """
-    # TODO decide how to determine de role of every node.
-    return "tx"
 
 
 def get_config_from_json(json_file):
