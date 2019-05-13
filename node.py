@@ -96,7 +96,7 @@ class Node:
                 "master": self.master
             }
             # Create packet in bytes to transmit and send packet
-            ack_packet = self.packet.generate_ack_discovery(self.predecessor, flags['file'], flags['master'])
+            ack_packet = self.packet.generate_ack_discovery(predecessor, flags['file'], flags['master'])
             self.send_packet(ack_packet)
             # Discount retransmission and start timeout
             self.retransmission -= 1
