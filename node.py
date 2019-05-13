@@ -122,6 +122,7 @@ class Node:
             # Get a random one and set state to send dataa
             self.successor = possible_successor[random.randint(0, len(possible_successor) - 1)][1]['address']
             self.state = cte.SEND_PACKET
+            self.file_index = 0
         else:
             # If there is not successor pass token
             self.state = cte.CHOOSE_TOKEN
