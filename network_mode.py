@@ -1,6 +1,7 @@
 from . import cte
 from .node import Node
-from .utils import get_args, process_config, get_file
+from .utils import process_config, get_file
+import logging
 
 
 def start(role, led, team_config):
@@ -15,24 +16,27 @@ def start(role, led, team_config):
     led.network_starting()
 
     config = team_config
+
+    # Create log file
+    logging.basicConfig(filename=config.Log_Path, format='%(asctime)s %(levelname)s %(message)s', level=config.Log_Level)
+    logging.info("---------------Log File Created---------------")
+
     try:
-        # Get arguments
-        #args = get_args()
         # Get config file from arguments
         config.update(process_config('./network_mode/config.json'))
     except:
-        print("missing or invalid arguments")
+        logging.error("Missing or invalid arguments")
         exit(0)
 
     if role == 'tx':
-        led.network_tx()
+        logging.info("Role --> Tx")
         file = get_file(config)
     else:
+        logging.info("Role --> Rx")
         led.network_rx()
         file = False
 
     # Create node entity according to config and pass file if it is possible.
-    # TODO is it necessary to pass led to Node for use it there?
     node = Node(config, file, role)
 
     loop = True
@@ -45,6 +49,7 @@ def start(role, led, team_config):
         if node.state is cte.BROADCAST_FLOODING:
             # If node state is broadcast flooding set retransmission of state
             # and begin broadcast transmission
+            led.network_tx()
             node.retransmission = config.nDiscovery
             node.broadcast_flooding()
 
@@ -66,11 +71,13 @@ def start(role, led, team_config):
             # If there is a successor to pass the token
             node.retransmission = config.nToken
             node.pass_token()
+            led.network_rx()
 
         elif node.state is cte.RETURN_TOKEN:
             # If this network branch is completed return token
             node.retransmission = config.nToken
             node.return_token()
+            led.network_rx()
 
         elif node.state is cte.CHOOSE_TOKEN:
             # State to select a successor of the token
@@ -89,11 +96,3 @@ def start(role, led, team_config):
         elif node.state is cte.OFF:
             led.network_success()
             loop = False
-
-# TODO definar todos los estados led necesario y cada equipo implementarlos en su main,
-#  de momento se han definido:
-#  - led.network_starting()
-#  - led.network_tx()
-#  - led.network_rx()
-#  - led.network_error()
-#  - led.network_success()

@@ -3,12 +3,18 @@ from .packet import Packet
 from .transceiver import Transceiver
 from . import cte
 import random
+import logging
 
 
 class Node:
     def __init__(self, config, file, role):
         self.config = config
-        self.state = cte.BROADCAST_FLOODING if role == 'tx' else cte.BROADCAST_ACK
+        if role == 'tx':
+            self.state = cte.BROADCAST_FLOODING
+            logging.info("State --> Broadcast flooding")
+        else:
+            self.state = cte.BROADCAST_ACK
+            logging.info("State --> Broadcast ACK")
         self.last_state = None
         self.packet = Packet(self.config)
         self.transmitter = Transceiver.transmitter(config)
@@ -46,6 +52,7 @@ class Node:
         if self.retransmission > 0:
             # set state to wait broadcast ACK, set timeout to next retransmission
             self.state = cte.IDLE_FLOODING
+            logging.info("State --> Idle Flooding")
             self.timeout = threading.Timer(self.config.Tout_Discovery, self.broadcast_flooding)
             # get broadcast packet to send and send it
             discovery_broadcast_packet = self.packet.generate_discovery()
@@ -56,7 +63,13 @@ class Node:
 
         else:
             # once retransmissions completed check if there are new neighbors and send packet to them
-            self.state = cte.CHOOSE_RECEIVER if len(self.neighbors) > 0 else cte.RETURN_TOKEN
+            if len(self.neighbors) > 0:
+                self.state = cte.CHOOSE_RECEIVER
+                logging.info("State --> Choose Receiver")
+            else:
+                self.state = cte.RETURN_TOKEN
+                logging.info("State --> Return Token")
+
             # clean timeout
             self.off_timeout()
 
@@ -72,6 +85,7 @@ class Node:
         self.last_state = _last_state
         # Set State to wait end handshake set retransmissions of ACK
         self.state = cte.IDLE_BROADCAST
+        logging.info("State --> Idle Broadcast")
         self.retransmission = self.config.nDiscovery_ACK
 
         # Get a random slot within the range of slots from config
@@ -105,7 +119,13 @@ class Node:
         else:
             self.off_timeout()
             # retransmissions reached, transmitter considered death set state to wait broadcast discovery packet
-            self.state = self.last_state if self.last_state else cte.BROADCAST_ACK
+            if self.last_state:
+                self.state = self.last_state
+                logging.info("State --> " + self.state)
+            else:
+                self.state = cte.BROADCAST_ACK
+                logging.info("State --> Broadcast ACK")
+
             # Set and start timeout general of receiver before set general error
             self.timeout_general = threading.Timer(self.config.Tout_EOP, self.end_error)
             self.timeout_general.start()
@@ -123,9 +143,11 @@ class Node:
             self.successor = possible_successor[random.randint(0, len(possible_successor) - 1)][1]['address']
             self.state = cte.SEND_PACKET
             self.file_index = 0
+            logging.info("State --> Send Packet")
         else:
             # If there is not successor pass token
             self.state = cte.CHOOSE_TOKEN
+            logging.info("State --> Choose Token")
 
     def send_packets(self):
         """
@@ -144,6 +166,7 @@ class Node:
             self.timeout.start()
             # Set state to wait ack for the data packet and reduce number of retransmissions
             self.state = cte.IDLE_PACKET_ACK
+            logging.info("State --> Idle Packet Ack")
             self.retransmission -= 1
 
         else:
@@ -153,6 +176,7 @@ class Node:
             del self.neighbors[self.successor]
             # Restart choose receiver process
             self.state = cte.CHOOSE_RECEIVER
+            logging.info("State --> Choose Receiver")
 
     def receive_packets(self):
         """
@@ -166,6 +190,7 @@ class Node:
             self.send_packet(packet)
             # set state to wait next data packet
             self.state = cte.IDLE_PACKET
+            logging.info("State --> Idle Packet")
             # Re-start general timeout for waiting to receive a new data frame
             self.timeout_general = threading.Timer(self.config.Tout_Data, self.error_tout_data)
             self.timeout_general.start()
@@ -176,6 +201,7 @@ class Node:
             self.send_packet(packet)
             # Set state to wait packet
             self.state = cte.PULP
+            logging.info("State --> Pulp")
             # Save File
             self.write_file()
             self.timeout_general = threading.Timer(self.config.Tout_EOP, self.end_error)
@@ -194,6 +220,7 @@ class Node:
             self.successor = possible_successor_token[
                 random.randint(0, len(possible_successor_token) - 1)][1]['address']
             self.state = cte.PASS_TOKEN
+            logging.info("State --> Pass Token")
         else:
             # If all the nodes that this node passed the data to, have had the token, get the rest that haven't
             possible_successor_token = list(
@@ -203,9 +230,11 @@ class Node:
                 self.successor = possible_successor_token[
                     random.randint(0, len(possible_successor_token) - 1)][1]['address']
                 self.state = cte.PASS_TOKEN
+                logging.info("State --> Pass Token")
             else:
                 # If there are not more possible successor, set state communication is over
                 self.state = cte.RETURN_TOKEN
+                logging.info("State --> Return Token")
 
     def pass_token(self):
         """
@@ -219,6 +248,7 @@ class Node:
             # Get token packet and send it
             token = self.packet.generate_token_frame(self.successor)
             self.state = cte.IDLE_TOKEN_ACK
+            logging.info("State --> Idle Token ACK")
             self.receiver.change_channel(self.config.Channel_master)
             self.retransmission -= 1
             self.send_packet(token)
@@ -232,6 +262,7 @@ class Node:
             del self.neighbors[self.successor]
             # Set state again to choose another successor for the token
             self.state = cte.CHOOSE_TOKEN
+            logging.info("State --> Choose Token")
 
     def return_token(self):
         """
@@ -241,10 +272,12 @@ class Node:
         if not self.predecessor or self.retransmission == 0:
             self.retransmission = self.config.nEnd
             self.state = cte.END
+            logging.info("State --> END")
         else:
             self.timeout_general = threading.Timer(self.config.Tout_Token, self.return_token)
             token = self.packet.generate_token_frame(self.predecessor)
             self.state = cte.IDLE_TOKEN_ACK
+            logging.info("State --> Idle token ACK")
             self.receiver.change_channel(self.config.Channel_master)
             self.retransmission -= 1
             self.send_packet(token)
@@ -260,6 +293,7 @@ class Node:
         packet_ack = self.packet.generate_ack_token_frame(origin)
         self.send_packet(packet_ack)
         self.state = cte.PULP
+        logging.info("State --> Pulp")
         self.timeout_general = threading.Timer(self.config.Tout_EOP, self.end_error)
         self.timeout_general.start()
 
@@ -279,6 +313,7 @@ class Node:
         self.timeout.start()
         # Set State to wait end of handshake
         self.state = cte.WAIT_ACK_TOKEN_CONF
+        logging.info("State --> Wait ACK token Conf")
 
     def send_end(self):
         """
@@ -293,6 +328,7 @@ class Node:
             self.transmitter.powerDown()
             self.receiver.powerDown()
             self.state = cte.OFF
+            logging.info("State --> OFF")
 
     def error_tout_data(self):
         """
@@ -300,6 +336,7 @@ class Node:
         :return:
         """
         self.state = cte.BROADCAST_ACK
+        logging.info("State --> Broadcast ACK")
 
     def end_error(self):
         """
@@ -307,6 +344,7 @@ class Node:
         :return:
         """
         self.state = cte.ERROR_END
+        logging.warning("State --> Error end")
 
     def check_receiver(self):
         """
@@ -357,7 +395,12 @@ class Node:
                     elif self.state == cte.IDLE_BROADCAST:
                         # Stop timeout of ACK Broadcast and set state to wait for data packet
                         self.off_timeout()
-                        self.state = self.last_state if self.last_state else cte.IDLE_PACKET
+                        if self.last_state:
+                            self.state = self.last_state
+                            logging.info("State --> " + self.state)
+                        else:
+                            self.state = cte.IDLE_PACKET
+                            logging.info("State --> Idle packet")
                         # Set timeout for waiting data packets and start it
                         if self.state == cte.IDLE_PACKET:
                             self.timeout_general = threading.Timer(self.config.Tout_Data, self.error_tout_data)
@@ -376,8 +419,10 @@ class Node:
                     if self.file_index == len(self.file):
                         self.neighbors[self.successor]['file'] = True
                         self.state = cte.CHOOSE_RECEIVER
+                        logging.info("State --> Choose Receiver")
                     else:
                         self.state = cte.SEND_PACKET
+                        logging.info("State --> Send Packet")
 
                 # Case waiting data packet and data packet received
                 elif packet['type'] == cte.DATA_PACKET:
@@ -392,6 +437,7 @@ class Node:
                             self.eot = packet['eot']
                         # Send ACK
                         self.state = cte.RECEIVE_DATA
+                        logging.info("State --> Receive data")
 
                     # Case waiting Token and receiving last data packet
                     elif self.state == cte.PULP:
@@ -418,6 +464,7 @@ class Node:
                         self.off_timeout()
                         # Set state to broadcast flooding to discover neighbors
                         self.master = True
+                        logging.info("Master --> True")
                         self.state = cte.BROADCAST_FLOODING
                     # state == PULP or WAIT_END or IDLE_TOKEN_ACK
                     elif self.state == cte.PULP or self.state == cte.IDLE_TOKEN_ACK:
@@ -432,6 +479,7 @@ class Node:
                     # Set state to end communication
                     self.retransmission = self.config.nEnd
                     self.state = cte.END
+                    logging.info("State --> End")
                     self.receiver.change_channel(self.config.Channel_slave)
                     self.transmitter.change_channel(self.config.Channel_master)
 
