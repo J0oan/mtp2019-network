@@ -188,7 +188,7 @@ class Node:
         """
         # Filter the neighbors list and get a node without token and data received from this node
         possible_successor_token = list(filter(
-            lambda successor: not successor[1]['master'] and not successor[1]['file_a_priori'], self.neighbors.items()))
+            lambda successor: not successor[1]['master'] and not successor[1]['file_a_priory'], self.neighbors.items()))
         if len(possible_successor_token) > 0:
             # If there are some possible successor, choose randomly one and set state to pass token
             self.successor = possible_successor_token[
