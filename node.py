@@ -338,10 +338,10 @@ class Node:
                         # Create neighbor from data received
                         neighbor = {
                             'address': packet['origin'],
-                            'master': packet['flags']['master'],
-                            'file': packet['flags']['file'],
+                            'master': packet['master'],
+                            'file': packet['file'],
                             'file_a_priory': self.neighbors[packet['origin']]['file_a_priory']
-                            if packet['origin'] in self.neighbors else packet['flags']['file']
+                            if packet['origin'] in self.neighbors else packet['file']
                         }
                         # Add neighbor to list
                         self.neighbors[neighbor["address"]] = neighbor

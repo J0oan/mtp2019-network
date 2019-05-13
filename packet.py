@@ -126,7 +126,7 @@ class Packet(object):
             flag1 = True if ((packet[1] & 0x02) >> 1) else False
             flag2 = True if (packet[1] & 0x01) else False
             # Return Ack Discovery info
-            return {"origin": source, "type": cte.ACK_DISCOVERY, "flag1": flag1, "flag2": flag2}
+            return {"origin": source, "type": cte.ACK_DISCOVERY, "file": flag1, "master": flag2}
 
         elif pt == 2:                                                           # If 2 Data Packet
             sec_n = ((packet[1] & 0x80) >> 7)
