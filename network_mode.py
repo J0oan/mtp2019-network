@@ -1,6 +1,7 @@
 from . import cte
 from .node import Node
 from .utils import get_args, process_config, get_file
+import logging
 
 
 def start(role, led, team_config):
@@ -15,19 +16,26 @@ def start(role, led, team_config):
     led.network_starting()
 
     config = team_config
+
+    # Create log file
+    logging.basicConfig(filename=config.Log_Path, format='%(asctime)s %(levelname)s %(message)s', level=config.Log_Level)
+    logging.info("---------------Log File Created---------------")
+
     try:
         # Get arguments
         #args = get_args()
         # Get config file from arguments
         config.update(process_config('./network_mode/config.json'))
     except:
-        print("missing or invalid arguments")
+        logging.error("Missing or invalid arguments")
         exit(0)
 
     if role == 'tx':
+        logging.info("Role --> Tx")
         led.network_tx()
         file = get_file(config)
     else:
+        logging.info("Role --> Rx")
         led.network_rx()
         file = False
 

@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 import time
 from bunch import Bunch
 from threading import Thread
+import logging
 from . import network_mode
 
 GO = False
@@ -82,6 +83,8 @@ def main():
     team_configuration = Bunch({
         "File_Path_Input": "/home/pi/mtp2019-netowrk/Files/Input/*.txt",
         "File_Path_Output": "/home/pi/mtp2019-netowrk/Files/Output/file.txt",
+        "Log_Path": "/home/pi/mtp2019-netowrk/Files/logger.log",
+        "Log_Level": logging.DEBUG,
         "Tx_CS": "RPI_V2_GPIO_P1_15",
         "Tx_CSN": "BCM2835_SPI_CS1",
         "Rx_CS": "RPI_V2_GPIO_P1_13",
