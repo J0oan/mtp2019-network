@@ -17,9 +17,9 @@ def start(role, led, team_config):
     config = team_config
     try:
         # Get arguments
-        args = get_args()
+        #args = get_args()
         # Get config file from arguments
-        config.update(process_config(args.config))
+        config.update(process_config('./config.json'))
     except:
         print("missing or invalid arguments")
         exit(0)
