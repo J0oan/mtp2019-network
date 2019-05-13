@@ -19,7 +19,7 @@ def start(role, led, team_config):
         # Get arguments
         #args = get_args()
         # Get config file from arguments
-        config.update(process_config('./config.json'))
+        config.update(process_config('./network_mode/config.json'))
     except:
         print("missing or invalid arguments")
         exit(0)
@@ -33,7 +33,7 @@ def start(role, led, team_config):
 
     # Create node entity according to config and pass file if it is possible.
     # TODO is it necessary to pass led to Node for use it there?
-    node = Node(config, file)
+    node = Node(config, file, role)
 
     loop = True
     # Main loop

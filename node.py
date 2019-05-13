@@ -6,9 +6,9 @@ import random
 
 
 class Node:
-    def __init__(self, config, file):
+    def __init__(self, config, file, role):
         self.config = config
-        self.state = cte.BROADCAST_FLOODING if config.role == 'tx' else cte.BROADCAST_ACK
+        self.state = cte.BROADCAST_FLOODING if role == 'tx' else cte.BROADCAST_ACK
         self.last_state = None
         self.packet = Packet(self.config)
         self.transmitter = Transceiver.transmitter(config)
@@ -19,13 +19,13 @@ class Node:
         self.neighbors = {}
         self.predecessor = None
         self.file = file
-        self.master = True if config.role == 'tx' else False
+        self.master = True if role == 'tx' else False
         self.file_index = 0
         self.eot = 0
         self.successor = None
 
         # Set tx and rx channels
-        if self.config.role == 'tx':
+        if role == 'tx':
             self.transmitter.change_channel(self.config.Channel_master)
             self.receiver.change_channel(self.config.Channel_slave)
         else:
