@@ -1,4 +1,4 @@
-import cte
+from . import cte
 from node import Node
 from utils import get_args, process_config, get_file
 
