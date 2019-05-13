@@ -56,7 +56,7 @@ def get_file(config):
         print("Loading File in: " + config.File_Path_Input)
         with open(config.File_Path_Input, 'rb') as f:
             while True:
-                chunk = f.read(config.Paylaod_Size)
+                chunk = f.read(config.Payload_size)
                 if chunk:
                     payload_list.append(chunk)
                 else:
