@@ -3,6 +3,7 @@ import time
 from bunch import Bunch
 from threading import Thread
 from . import network_mode
+from RF24 import *
 
 GO = False
 
@@ -82,10 +83,10 @@ def main():
     team_configuration = Bunch({
         "File_Path_Input": "/home/pi/mtp2019-netowrk/Files/Input/*.txt",
         "File_Path_Output": "/home/pi/mtp2019-netowrk/Files/Output/file.txt",
-        "Tx_CS": "RPI_V2_GPIO_P1_15",
-        "Tx_CSN": "BCM2835_SPI_CS1",
-        "Rx_CS": "RPI_V2_GPIO_P1_13",
-        "Rx_CSN": "BCM2835_SPI_CS0",
+        "Tx_CS": RPI_V2_GPIO_P1_15,
+        "Tx_CSN": BCM2835_SPI_CS1,
+        "Rx_CS": RPI_V2_GPIO_P1_13,
+        "Rx_CSN": BCM2835_SPI_CS0,
         "address": 1})
 
     network_mode.start(role, led_manager, team_configuration)

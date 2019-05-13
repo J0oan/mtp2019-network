@@ -116,11 +116,11 @@ class Node:
         :return: None
         """
         # Filter neighbors that not have file
-        possible_successor = list(filter(lambda successor: not successor['file'], self.neighbors))
+        possible_successor = list(filter(lambda successor: not successor[1]['file'], self.neighbors.items()))
         # check if there is a possible successor
         if len(possible_successor) > 0:
             # Get a random one and set state to send dataa
-            self.successor = self.neighbors[random.randint(0, len(possible_successor) - 1)]['address']
+            self.successor = self.neighbors[random.randint(0, len(possible_successor) - 1)][1]['address']
             self.state = cte.SEND_PACKET
         else:
             # If there is not successor pass token
@@ -186,18 +186,19 @@ class Node:
         :return: None
         """
         # Filter the neighbors list and get a node without token and data received from this node
-        possible_successor_token = list(
-            filter(lambda successor: not successor['master'] and not successor['file_a_priori'], self.neighbors))
+        possible_successor_token = list(filter(
+            lambda successor: not successor[1]['master'] and not successor[1]['file_a_priori'], self.neighbors.items()))
         if len(possible_successor_token) > 0:
             # If there are some possible successor, choose randomly one and set state to pass token
-            self.successor = self.neighbors[random.randint(0, len(possible_successor_token) - 1)]['address']
+            self.successor = self.neighbors[random.randint(0, len(possible_successor_token) - 1)][1]['address']
             self.state = cte.PASS_TOKEN
         else:
             # If all the nodes that this node passed the data to, have had the token, get the rest that haven't
-            possible_successor_token = list(filter(lambda successor: not successor['master'], self.neighbors))
+            possible_successor_token = list(
+                filter(lambda successor: not successor[1]['master'], self.neighbors.items()))
             if len(possible_successor_token) > 0:
                 # If there are some possible successor, choose randomly one and set state to pass token
-                self.successor = self.neighbors[random.randint(0, len(possible_successor_token) - 1)]['address']
+                self.successor = self.neighbors[random.randint(0, len(possible_successor_token) - 1)][1]['address']
                 self.state = cte.PASS_TOKEN
             else:
                 # If there are not more possible successor, set state communication is over
