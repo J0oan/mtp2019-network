@@ -1,7 +1,7 @@
 import threading
-from packet import Packet
-from transceiver import Transceiver
-import cte
+from .packet import Packet
+from .transceiver import Transceiver
+from . import cte
 import random
 
 

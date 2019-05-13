@@ -1,4 +1,4 @@
-import cte
+from . import cte
 
 
 class Packet(object):

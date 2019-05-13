@@ -1,6 +1,6 @@
 from . import cte
-from node import Node
-from utils import get_args, process_config, get_file
+from .node import Node
+from .utils import get_args, process_config, get_file
 
 
 def start(role, led, team_config):
