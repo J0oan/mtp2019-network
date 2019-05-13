@@ -251,13 +251,13 @@ class Node:
             # Start timeout and set state to wait token ack
             self.timeout_general.start()
 
-    def token_ack(self):
+    def token_ack(self, origin):
         """
         Send ACK token to updated predecessor
         :return:
         """
         # Generate ACK packet for token acknowledgment
-        packet_ack = self.packet.generate_ack_token_frame(self.predecessor)
+        packet_ack = self.packet.generate_ack_token_frame(origin)
         self.send_packet(packet_ack)
         self.state = cte.PULP
         self.timeout_general = threading.Timer(self.config.Tout_EOP, self.end_error)
@@ -424,7 +424,7 @@ class Node:
                         self.off_timeout_general()
                         if self.state == cte.IDLE_TOKEN_ACK:
                             self.transmitter.change_channel(self.config.Channel_slave)
-                        self.token_ack()
+                        self.token_ack(packet['origin'])
 
                 # Case waiting Token and receive End of Tx packet
                 elif packet['type'] == cte.END_OF_TX and self.state == cte.PULP:
