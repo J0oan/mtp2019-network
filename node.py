@@ -282,8 +282,8 @@ class Node:
         :return: None
         """
         if self.retransmission > 0:
-            self.packet = self.packet.end_protocol()
-            self.send_packet(self.packet)
+            packet = self.packet.end_protocol()
+            self.send_packet(packet)
             self.retransmission -= 1
         else:
             self.transmitter.powerDown()
