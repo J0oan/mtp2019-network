@@ -12,8 +12,8 @@ class Transceiver(RF24):
         else:
             RF24.__init__(self, self.config.Rx_CS, self.config.Rx_CSN, BCM2835_SPI_SPEED_8MHZ)
         self.begin()
-        self.setPALevel(RF24_PA_MAX)
-        self.setDataRate(RF24_2MBPS)
+        self.setPALevel(RF24_PA_MIN)
+        self.setDataRate(RF24_250KBPS)
         self.setAutoAck(False)
         self.enableDynamicPayloads()
         self.openWritingPipe(0xf0f0f0f0e1)
