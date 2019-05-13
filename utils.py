@@ -4,8 +4,6 @@ import argparse
 import os
 
 
-
-
 def get_config_from_json(json_file):
     """
     Read json file.
@@ -33,17 +31,17 @@ def process_config(json_file):
 def get_args():
     """
     Function to get arguments passed to python binary.
-    Ex: python3 main.py -c ./config.json
+    Ex: python3 network_mode.py -c ./config.json
     :return: arguments passed
     Ex: {config: './config.json'}
     """
-    argparser = argparse.ArgumentParser(description=__doc__)
-    argparser.add_argument(
+    arg_parser = argparse.ArgumentParser(description=__doc__)
+    arg_parser.add_argument(
         '-c', '--config',
         metavar='C',
         default='None',
         help='The Configuration file')
-    args = argparser.parse_args()
+    args = arg_parser.parse_args()
     return args
 
 

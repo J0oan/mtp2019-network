@@ -1,4 +1,4 @@
-import cte
+from . import cte
 
 
 class Packet(object):
@@ -14,7 +14,7 @@ class Packet(object):
         chunk = (0xf << 4) | (self.origin & 0xf)         # Destination address Broadcast| source
         packet = bytes([chunk])                    # Transform to bytes
         # SN = 0 | PT = 000 | Flags = 0000
-        packet += (b'\x00')
+        packet += b'\x00'
         return packet
 
     def generate_ack_discovery(self, destination, flag1, flag2):
@@ -32,36 +32,36 @@ class Packet(object):
         packet += bytes([chunk])
         return packet
 
-    def generate_data(self, destination, seqN, end, payload):
+    def generate_data(self, destination, seq_number, end, payload):
         """
         Generar paquete ACK-Discovery y delvover array de bytes
         :param destination:
-        :param seqN:
+        :param seq_number:
         :param end:
-        :param payload: type bytes
+        :param payload: type bytes,
         :return:
         """
-        chunk = ((destination & 0xf) << 4) | (self.origin & 0xf)         # Destination address Broadcast| source
+        chunk = ((destination & 0xf) << 4) | (self.origin & 0xf)      # Destination address Broadcast| source
         # Transform to bytes
         packet = bytes([chunk])
-        chunk = (seqN & 0x1) << 7 | (0b010 << 4) | (end & 0x1)      # SN = seqN | PT = 010 | Flags = (0 0 0 end)
+        chunk = (seq_number & 0x1) << 7 | (0b010 << 4) | (end & 0x1)  # SN = seq_number | PT = 010 | Flags = (0 0 0 end)
         packet += bytes([chunk])
         packet += payload
         return packet
 
-    def generate_ack(self, destination, seqN, LPC):
+    def generate_ack(self, destination, seq_number, lpc):
         """
         Generar paquete ACK y delvover array de bytes
         :param destination:
-        :param seqN:
-        :param type:
+        :param seq_number:
+        :param lpc:
         :return:
         """
         chunk = ((destination & 0xf) << 4) | (self.origin & 0xf)         # Destination address Broadcast| source
         # Transform to bytes
         packet = bytes([chunk])
-        # SN = seqN | PT = 011 | Flags = 000 + LPC
-        chunk = (seqN & 0x1) << 7 | (0b011 << 4) | (LPC & 0x1)
+        # SN = seq_number | PT = 011 | Flags = 000 + lpc
+        chunk = (seq_number & 0x1) << 7 | (0b011 << 4) | (lpc & 0x1)
         packet += bytes([chunk])
         return packet
 
@@ -107,46 +107,42 @@ class Packet(object):
 
     def decapsulate_packet(self, packet):
         # Packet Length
-        pktlength = packet.length()
+        packet_length = len(packet)
         # Source
         source = (packet[0] & 0x0f)
         # Destination
         destination = ((packet[0] & 0xf0) >> 4)
 
-        if (destination != self.origin) & (destination != 0x0f):           # Drop the packet if I'm not the destination or not Broadcast
+        # Drop the packet if I'm not the destination or not Broadcast
+        if (destination != self.origin) & (destination != 0x0f):
             return False
         # Packet Type
-        PT = ((packet[1] & 0x70) >> 4)
+        pt = ((packet[1] & 0x70) >> 4)
 
-        if PT == 0:                                                          # If 0 Discovery Broadcast
+        if pt == 0:                                                          # If 0 Discovery Broadcast
             return {"origin": source, "type": cte.DISCOVERY_BROADCAST}
 
-        elif PT==1:                                                          # If 1 ACK Discovery
-            flag1 = ((packet[1] & 0x02) >> 1)
-            flag2 = (packet[1] & 0x01)
-            return {"origin": source, "type": cte.ACK_DISCOVERY, "flag1": flag1, "flag2": flag2}    # Return Ack Discovery info
+        elif pt == 1:                                                          # If 1 ACK Discovery
+            flag1 = True if ((packet[1] & 0x02) >> 1) else False
+            flag2 = True if (packet[1] & 0x01) else False
+            # Return Ack Discovery info
+            return {"origin": source, "type": cte.ACK_DISCOVERY, "flag1": flag1, "flag2": flag2}
 
-        elif PT==2:                                                           # If 2 Data Packet
-            # TODO shouldn't be a end of file field
-            secN = ((packet[1] & 0x80) >> 7)
+        elif pt == 2:                                                           # If 2 Data Packet
+            sec_n = ((packet[1] & 0x80) >> 7)
             eot = (packet[1] & 0x01)                                          # Final data packet
-            payload = packet[2:pktlength-2]
-            return {"origin": source, "type": cte.DATA_PACKET, "secN": secN, "payload": payload,  "eot": eot}
+            payload = packet[2:packet_length]
+            return {"origin": source, "type": cte.DATA_PACKET, "sec_n": sec_n, "payload": payload,  "eot": eot}
 
-        elif PT==3:                                                           # If 3 ACK Data Packet
-            secN = ((packet[1] & 0x80) >> 7)
-            if (packet[1] & 0x02) >> 1: # Check LPC                           # IF LPC == 1 Final ACK
-                return {"origin": source, "type": cte.ACK_ACKPACKET}
-            else:
-                return {"origin": source, "type": cte.ACK_PACKET, "secN": secN}
+        elif pt == 3:                                                           # If 3 ACK Data Packet
+            sec_n = ((packet[1] & 0x80) >> 7)
+            return {"origin": source, "type": cte.ACK_PACKET, "sec_n": sec_n}
 
-        elif PT==4:                                                            # Token packet
+        elif pt == 4:                                                            # Token packet
             return {"origin": source, "type": cte.TOKEN_PACKET}
 
-        elif PT==6:                                                            # ACK Token
+        elif pt == 6:                                                            # ACK Token
             return {"origin": source, "type": cte.ACK_TOKEN}
 
-        elif PT==5:                                                            # END of transmission
+        elif pt == 5:                                                            # END of transmission
             return {"origin": source, "type": cte.END_OF_TX}
-
-
