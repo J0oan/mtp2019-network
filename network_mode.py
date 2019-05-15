@@ -23,7 +23,7 @@ def start(role, led, team_config):
 
     try:
         # Get config file from arguments
-        config.update(process_config('./network_mode/config.json'))
+        config.update(process_config(config.json_path))
     except:
         logging.error("Missing or invalid arguments")
         exit(0)
